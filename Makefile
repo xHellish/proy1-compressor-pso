@@ -1,15 +1,15 @@
 CC = gcc
 CFLAGS = -std=c11 -Wall -Wextra -Wpedantic
-LIBS = $(shell pkg-config --cflags --libs libcurl)
-SOURCE = gutenberg_downloader.c
-TARGET = gutenberg_downloader
+SOURCE = main.c
+GTK_CFLAGS = $(shell pkg-config --cflags gtk4)
+GTK_LIBS = $(shell pkg-config --libs gtk4)
 
 .PHONY: all clean
 
-all: $(TARGET)
+all: main
 
-$(TARGET): $(SOURCE)
-	$(CC) $(CFLAGS) $(SOURCE) -o $(TARGET) $(LIBS)
+main: $(SOURCE)
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(SOURCE) -o main $(GTK_LIBS)
 
 clean:
-	rm -f $(TARGET)
+	rm -f main gutenberg_downloader ventana_gtk4
