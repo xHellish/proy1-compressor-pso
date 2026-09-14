@@ -1,14 +1,75 @@
 #include "gtk_ui.h"
 
-typedef struct {
-	GtkWidget *window;
-	GtkWidget *directory_label;
-	GtkWidget *status_label;
-	gchar *directory;
-} AppState;
-
 static void actualizar_estado(AppState *state, const gchar *message) {
 	gtk_label_set_text(GTK_LABEL(state->status_label), message);
+}
+
+static gint indice_metodo(const gchar *metodo) {
+	if (g_strcmp0(metodo, "Normal") == 0) {
+		return 0;
+	}
+	if (g_strcmp0(metodo, "Fork") == 0) {
+		return 1;
+	}
+	if (g_strcmp0(metodo, "Pthread") == 0) {
+		return 2;
+	}
+	return -1;
+}
+
+static void actualizar_resultado(AppState *state, gchar **parts) {
+	gint row = indice_metodo(parts[1]);
+	gchar *values[8];
+
+	if (row < 0 || g_strv_length(parts) < 14) {
+		return;
+	}
+
+	values[0] = g_strdup_printf("%s%%", parts[3]);
+	values[1] = g_strdup_printf("%s s", parts[4]);
+	values[2] = g_strdup_printf("%s s", parts[5]);
+	values[3] = g_strdup_printf("%s%%", parts[6]);
+	values[4] = g_strdup_printf("%s%%", parts[7]);
+	values[5] = g_strdup(parts[10]);
+	values[6] = g_strdup(parts[11]);
+	values[7] = g_strdup(parts[12]);
+
+	for (guint column = 0; column < G_N_ELEMENTS(values); column++) {
+		gtk_label_set_text(GTK_LABEL(state->result_cells[row][column]), values[column]);
+		g_free(values[column]);
+	}
+}
+
+static void resultado_recibido(GObject *source_object,
+							   GAsyncResult *async_result,
+							   gpointer user_data) {
+	AppState *state = user_data;
+	GSubprocess *process = G_SUBPROCESS(source_object);
+	gchar *stdout_text = NULL;
+	gchar *stderr_text = NULL;
+	GError *error = NULL;
+
+	if (!g_subprocess_communicate_utf8_finish(process, async_result,
+											 &stdout_text, &stderr_text, &error)) {
+		actualizar_estado(state, error->message);
+		g_clear_error(&error);
+		g_free(stdout_text);
+		g_free(stderr_text);
+		return;
+	}
+
+	g_strstrip(stdout_text);
+	if (g_str_has_prefix(stdout_text, "RESULT|")) {
+		gchar **parts = g_strsplit(stdout_text, "|", -1);
+		actualizar_resultado(state, parts);
+		g_strfreev(parts);
+		actualizar_estado(state, "Resultado recibido y tabla actualizada.");
+	} else {
+		actualizar_estado(state, "El proceso no devolvió un resultado válido.");
+	}
+
+	g_free(stdout_text);
+	g_free(stderr_text);
 }
 
 static void seleccionar_directorio_finalizado(GObject *source_object,
@@ -75,10 +136,15 @@ static void ejecutar_todas(GtkButton *button, gpointer user_data) {
 			continue;
 		}
 
-		gchar *argv[] = {(gchar *)programs[index], state->directory, NULL};
 		GError *error = NULL;
-		if (g_spawn_async(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &error)) {
+		GSubprocess *process = g_subprocess_new(
+			G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_PIPE,
+			&error, programs[index], state->directory, NULL);
+		if (process != NULL) {
 			started++;
+			g_subprocess_communicate_utf8_async(process, NULL, NULL,
+										 resultado_recibido, state);
+			g_object_unref(process);
 		}
 		g_clear_error(&error);
 	}
@@ -103,7 +169,7 @@ static GtkWidget *crear_boton_operacion(const gchar *label,
 	return button;
 }
 
-static void agregar_celda(GtkGrid *grid, const gchar *text, gint column, gint row) {
+static GtkWidget *agregar_celda(GtkGrid *grid, const gchar *text, gint column, gint row) {
 	GtkWidget *label = gtk_label_new(text);
 	gtk_label_set_wrap(GTK_LABEL(label), TRUE);
 	gtk_widget_set_halign(label, GTK_ALIGN_START);
@@ -112,9 +178,10 @@ static void agregar_celda(GtkGrid *grid, const gchar *text, gint column, gint ro
 	gtk_widget_set_margin_start(label, 8);
 	gtk_widget_set_margin_end(label, 8);
 	gtk_grid_attach(grid, label, column, row, 1, 1);
+	return label;
 }
 
-static GtkWidget *crear_tabla_estadisticas(void) {
+static GtkWidget *crear_tabla_estadisticas(AppState *state) {
 	static const gchar *headers[] = {
 		"Método", "Salud (%)", "Tiempo comp.", "Tiempo descomp.",
 		"Aceleración comp. (%)", "Aceleración descomp. (%)",
@@ -131,7 +198,8 @@ static GtkWidget *crear_tabla_estadisticas(void) {
 	for (guint row = 0; row < G_N_ELEMENTS(methods); row++) {
 		agregar_celda(GTK_GRID(grid), methods[row], 0, row + 1);
 		for (guint column = 1; column < G_N_ELEMENTS(headers); column++) {
-			agregar_celda(GTK_GRID(grid), "Pendiente", column, row + 1);
+			state->result_cells[row][column - 1] = agregar_celda(
+				GTK_GRID(grid), "Pendiente", column, row + 1);
 		}
 	}
 	return grid;
@@ -149,7 +217,7 @@ void activar_ui(GtkApplication *app) {
 	GtkWidget *operation_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 	GtkWidget *statistics_title = gtk_label_new("Tabla comparativa (placeholders)");
 	GtkWidget *statistics_scroll = gtk_scrolled_window_new();
-	GtkWidget *statistics_table = crear_tabla_estadisticas();
+	GtkWidget *statistics_table = crear_tabla_estadisticas(state);
 	GtkWidget *status_label = gtk_label_new("Selecciona un directorio para comenzar.");
 
 	state->window = window;
