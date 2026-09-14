@@ -22,10 +22,14 @@ typedef struct {
 
 typedef struct {
 	GtkWidget *window;
-	GtkWidget *directory_label;
+	GtkWidget *source_label;
+	GtkWidget *archive_label;
+	GtkWidget *destination_label;
 	GtkWidget *status_label;
 	GtkWidget *result_cells[3][8];
-	gchar *directory;
+	gchar *source_directory;
+	gchar *archive_file;
+	gchar *destination_directory;
 	Resultado resultados[3];
 } AppState;
 
