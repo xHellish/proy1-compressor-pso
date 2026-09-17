@@ -13,8 +13,8 @@ all: main $(COMPRESSORS) $(DECOMPRESSORS)
 main: $(SOURCE) gtk_ui.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(SOURCE) -o main $(GTK_LIBS)
 
-compresor_normal: compresor_normal.c
-	$(CC) $(CFLAGS) $< -o $@
+compresor_normal: compresor_normal.c aux_funcs.c aux_funcs.h compresor_normal.h
+	$(CC) $(CFLAGS) compresor_normal.c aux_funcs.c -o $@
 
 compresor_fork: compresor_fork.c
 	$(CC) $(CFLAGS) $< -o $@

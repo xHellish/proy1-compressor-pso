@@ -161,8 +161,8 @@ static void ejecutar_todas(GtkButton *button, gpointer user_data) {
 	guint missing = 0;
 
 	if (g_strcmp0(operation, "compress") == 0) {
-		if (state->source_directory == NULL) {
-			actualizar_estado(state, "Selecciona una carpeta de origen.");
+		if (state->source_directory == NULL || state->destination_directory == NULL) {
+			actualizar_estado(state, "Selecciona las carpetas de origen y destino.");
 			return;
 		}
 		programs[0] = "./compresor_normal";
@@ -189,7 +189,8 @@ static void ejecutar_todas(GtkButton *button, gpointer user_data) {
 		if (g_strcmp0(operation, "compress") == 0) {
 			process = g_subprocess_new(
 				G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_PIPE,
-				&error, programs[index], state->source_directory, NULL);
+				&error, programs[index], state->source_directory,
+				state->destination_directory, NULL);
 		} else {
 			process = g_subprocess_new(
 				G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_PIPE,
