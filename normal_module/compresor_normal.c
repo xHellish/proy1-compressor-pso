@@ -6,10 +6,10 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "aux_funcs.h"
+#include "../aux_funcs.h"
 #include "compresor_normal.h"
 
-#define ARCHIVO_SALIDA "archivo_comprimido.huff"
+#define ARCHIVO_SALIDA "archivo_comprimido_normal.huff"
 #define MAGIC "HUF1"
 
 typedef struct {
