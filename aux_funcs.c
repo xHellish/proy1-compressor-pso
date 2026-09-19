@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "aux_funcs.h"
 
 #include <dirent.h>
@@ -5,6 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
+
+double tiempo_monotonic(void) {
+	struct timespec instante;
+	clock_gettime(CLOCK_MONOTONIC, &instante);
+	return (double)instante.tv_sec + (double)instante.tv_nsec / 1e9;
+}
 
 char *duplicar_texto(const char *texto) {
 	size_t tamano = strlen(texto) + 1;

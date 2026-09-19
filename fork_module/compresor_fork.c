@@ -58,7 +58,7 @@ int comprimir_fork(const char *directorio_entrada, const char *directorio_salida
 	int *estados = NULL;
 	int canal[2];
 	FILE *salida = NULL;
-	clock_t inicio = clock();
+	double inicio = tiempo_monotonic();
 	int resultado = -1;
 	uint64_t tamano_original = 0;
 	uint64_t tamano_comprimido = 0;
@@ -160,7 +160,7 @@ limpiar:
 	if (resultado == 0) {
 		double ratio = tamano_original == 0 ? 0.0 : (double)tamano_comprimido / tamano_original;
 		printf("RESULT|Fork|compress|100.0|%.6f|0.00|0.00|0.00|%zu|%zu|%llu|%llu|%.6f|0\n",
-			(double)(clock() - inicio) / CLOCKS_PER_SEC, cantidad, cantidad,
+			tiempo_monotonic() - inicio, cantidad, cantidad,
 			(unsigned long long)tamano_original, (unsigned long long)tamano_comprimido, ratio);
 	}
 	return resultado;

@@ -17,28 +17,78 @@ static gint indice_metodo(const gchar *metodo) {
 	return -1;
 }
 
-static void actualizar_resultado(AppState *state, gchar **parts) {
-	gint row = indice_metodo(parts[1]);
-	gchar *values[8];
-
-	if (row < 0 || g_strv_length(parts) < 14) {
-		return;
+static gdouble calcular_aceleracion(gdouble tiempo_normal, gdouble tiempo_metodo) {
+	if (tiempo_normal <= 0.0) {
+		return 0.0;
 	}
+	return (tiempo_normal - tiempo_metodo) / tiempo_normal * 100.0;
+}
 
-	values[0] = g_strdup_printf("%s%%", parts[3]);
-	values[1] = g_strdup_printf("%s s", parts[4]);
-	values[2] = g_strdup_printf("%s s", parts[5]);
-	values[3] = g_strdup_printf("%s%%", parts[6]);
-	values[4] = g_strdup_printf("%s%%", parts[7]);
-	values[5] = g_strdup(parts[10]);
-	values[6] = g_strdup(parts[11]);
-	values[7] = g_strdup(parts[12]);
+static void actualizar_tabla(AppState *state, gint row) {
+	Resultado *resultado = &state->resultados[row];
+	Resultado *normal = &state->resultados[0];
+	gdouble aceleracion_compresion = state->compresion_recibida[row]
+		? calcular_aceleracion(normal->tiempo_compresion, resultado->tiempo_compresion) : 0.0;
+	gdouble aceleracion_descompresion = state->descompresion_recibida[row]
+		? calcular_aceleracion(normal->tiempo_descompresion, resultado->tiempo_descompresion) : 0.0;
+	gchar *values[9];
+
+	values[0] = g_strdup(resultado->estado != NULL ? resultado->estado : "Pendiente");
+	values[1] = g_strdup_printf("%.1f%%", resultado->salud);
+	values[2] = g_strdup_printf("%.6f s", resultado->tiempo_compresion);
+	values[3] = g_strdup_printf("%.6f s", resultado->tiempo_descompresion);
+	values[4] = g_strdup_printf("%.2f%%", aceleracion_compresion);
+	values[5] = g_strdup_printf("%.2f%%", aceleracion_descompresion);
+	values[6] = g_strdup_printf("%llu", (unsigned long long)resultado->tamano_original);
+	values[7] = g_strdup_printf("%llu", (unsigned long long)resultado->tamano_comprimido);
+	values[8] = g_strdup_printf("%.6f", resultado->radio_compresion);
 
 	for (guint column = 0; column < G_N_ELEMENTS(values); column++) {
 		gtk_label_set_text(GTK_LABEL(state->result_cells[row][column]), values[column]);
 		g_free(values[column]);
 	}
 }
+
+static void actualizar_resultado(AppState *state, gchar **parts) {
+	gint row = indice_metodo(parts[1]);
+	Resultado *resultado;
+	gboolean es_compresion;
+
+	if (row < 0 || g_strv_length(parts) < 14) {
+		return;
+	}
+
+	es_compresion = g_strcmp0(parts[2], "compress") == 0;
+	if (!es_compresion && g_strcmp0(parts[2], "decompress") != 0) {
+		return;
+	}
+
+	resultado = &state->resultados[row];
+	g_free(resultado->estado);
+	resultado->estado = g_strdup("Completado");
+	resultado->salud = g_ascii_strtod(parts[3], NULL);
+	resultado->cantidad_archivos = g_ascii_strtoull(parts[8], NULL, 10);
+	resultado->firmas_verificadas = g_ascii_strtoull(parts[9], NULL, 10);
+	resultado->tamano_original = g_ascii_strtoull(parts[10], NULL, 10);
+	resultado->tamano_comprimido = g_ascii_strtoull(parts[11], NULL, 10);
+	resultado->radio_compresion = g_ascii_strtod(parts[12], NULL);
+	if (es_compresion) {
+		resultado->tiempo_compresion = g_ascii_strtod(parts[4], NULL);
+		state->compresion_recibida[row] = TRUE;
+	} else {
+		resultado->tiempo_descompresion = g_ascii_strtod(parts[5], NULL);
+		state->descompresion_recibida[row] = TRUE;
+	}
+	actualizar_tabla(state, row);
+	for (gint metodo = 0; metodo < 3; metodo++) {
+		if (metodo != row && (es_compresion ? state->compresion_recibida[metodo]
+			: state->descompresion_recibida[metodo])) {
+			actualizar_tabla(state, metodo);
+		}
+	}
+}
+
+static void ejecutar_siguiente(AppState *state);
 
 static void resultado_recibido(GObject *source_object,
 							   GAsyncResult *async_result,
@@ -48,13 +98,21 @@ static void resultado_recibido(GObject *source_object,
 	gchar *stdout_text = NULL;
 	gchar *stderr_text = NULL;
 	GError *error = NULL;
+	const gchar *metodo = g_object_get_data(G_OBJECT(process), "metodo");
+	gint row = indice_metodo(metodo);
 
 	if (!g_subprocess_communicate_utf8_finish(process, async_result,
 											 &stdout_text, &stderr_text, &error)) {
+		if (row >= 0) {
+			g_free(state->resultados[row].estado);
+			state->resultados[row].estado = g_strdup("Error");
+			actualizar_tabla(state, row);
+		}
 		actualizar_estado(state, error->message);
 		g_clear_error(&error);
 		g_free(stdout_text);
 		g_free(stderr_text);
+		ejecutar_siguiente(state);
 		return;
 	}
 
@@ -65,11 +123,17 @@ static void resultado_recibido(GObject *source_object,
 		g_strfreev(parts);
 		actualizar_estado(state, "Resultado recibido y tabla actualizada.");
 	} else {
+		if (row >= 0) {
+			g_free(state->resultados[row].estado);
+			state->resultados[row].estado = g_strdup("Error");
+			actualizar_tabla(state, row);
+		}
 		actualizar_estado(state, "El proceso no devolvió un resultado válido.");
 	}
 
 	g_free(stdout_text);
 	g_free(stderr_text);
+	ejecutar_siguiente(state);
 }
 
 static void seleccionar_directorio_finalizado(GObject *source_object,
@@ -153,45 +217,34 @@ static void seleccionar_archivo(GtkButton *button, gpointer user_data) {
 						 seleccionar_archivo_finalizado, state);
 }
 
-static void ejecutar_todas(GtkButton *button, gpointer user_data) {
-	AppState *state = user_data;
-	const gchar *operation = g_object_get_data(G_OBJECT(button), "operation");
-	const gchar *programs[3];
+static void ejecutar_siguiente(AppState *state) {
+	static const gchar *compresores[] = {
+		"./compresor_normal", "./compresor_fork", "./compresor_pthread"
+	};
+	static const gchar *descompresores[] = {
+		"./descompresor_normal", "./descompresor_fork", "./descompresor_pthread"
+	};
 	static const gchar *archive_names[] = {
 		"archivo_comprimido_normal.huff",
 		"archivo_comprimido_fork.huff",
 		"archivo_comprimido_pthread.huff"
 	};
-	guint started = 0;
-	guint missing = 0;
+	const gchar *const *programs = g_strcmp0(state->operacion_actual, "compress") == 0
+		? compresores : descompresores;
+	guint index;
 
-	if (g_strcmp0(operation, "compress") == 0) {
-		if (state->source_directory == NULL || state->destination_directory == NULL) {
-			actualizar_estado(state, "Selecciona las carpetas de origen y destino.");
-			return;
-		}
-		programs[0] = "./compresor_normal";
-		programs[1] = "./compresor_fork";
-		programs[2] = "./compresor_pthread";
-	} else {
-		if (state->archive_file == NULL || state->destination_directory == NULL) {
-			actualizar_estado(state, "Selecciona el archivo comprimido y la carpeta destino.");
-			return;
-		}
-		programs[0] = "./descompresor_normal";
-		programs[1] = "./descompresor_fork";
-		programs[2] = "./descompresor_pthread";
-	}
-
-	for (guint index = 0; index < G_N_ELEMENTS(programs); index++) {
+	while (state->indice_siguiente < 3) {
+		index = state->indice_siguiente++;
 		if (!g_file_test(programs[index], G_FILE_TEST_IS_EXECUTABLE)) {
-			missing++;
+			g_free(state->resultados[index].estado);
+			state->resultados[index].estado = g_strdup("No disponible");
+			actualizar_tabla(state, index);
 			continue;
 		}
 
 		GError *error = NULL;
 		GSubprocess *process;
-		if (g_strcmp0(operation, "compress") == 0) {
+		if (g_strcmp0(state->operacion_actual, "compress") == 0) {
 			process = g_subprocess_new(
 				G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_PIPE,
 				&error, programs[index], state->source_directory,
@@ -206,24 +259,58 @@ static void ejecutar_todas(GtkButton *button, gpointer user_data) {
 			g_free(archive_directory);
 			g_free(archive_file);
 		}
-		if (process != NULL) {
-			started++;
-			g_subprocess_communicate_utf8_async(process, NULL, NULL,
-										 resultado_recibido, state);
-			g_object_unref(process);
+		if (process == NULL) {
+			g_free(state->resultados[index].estado);
+			state->resultados[index].estado = g_strdup("Error al iniciar");
+			actualizar_tabla(state, index);
+			g_clear_error(&error);
+			continue;
 		}
-		g_clear_error(&error);
+
+		g_object_set_data_full(G_OBJECT(process), "metodo",
+			g_strdup(index == 0 ? "Normal" : index == 1 ? "Fork" : "Pthread"), g_free);
+		g_free(state->resultados[index].estado);
+		state->resultados[index].estado = g_strdup(
+			g_strcmp0(state->operacion_actual, "compress") == 0
+				? "Comprimiendo" : "Descomprimiendo");
+		actualizar_tabla(state, index);
+		g_subprocess_communicate_utf8_async(process, NULL, NULL,
+			resultado_recibido, state);
+		g_object_unref(process);
+		actualizar_estado(state, "Ejecutando métodos por separado...");
+		return;
 	}
 
-	if (missing > 0) {
-		gchar *message = g_strdup_printf("%u programa(s) no disponible(s). Se muestran placeholders.", missing);
-		actualizar_estado(state, message);
-		g_free(message);
-	} else {
-		gchar *message = g_strdup_printf("Se iniciaron %u corridas. Las estadísticas se actualizarán cuando existan resultados.", started);
-		actualizar_estado(state, message);
-		g_free(message);
+	state->ejecutando = FALSE;
+	actualizar_estado(state, "Finalizaron las corridas por separado.");
+}
+
+static void ejecutar_todas(GtkButton *button, gpointer user_data) {
+	AppState *state = user_data;
+	const gchar *operation = g_object_get_data(G_OBJECT(button), "operation");
+
+	if (state->ejecutando) {
+		actualizar_estado(state, "Ya hay una tanda de corridas en ejecución.");
+		return;
 	}
+
+	if (g_strcmp0(operation, "compress") == 0) {
+		if (state->source_directory == NULL || state->destination_directory == NULL) {
+			actualizar_estado(state, "Selecciona las carpetas de origen y destino.");
+			return;
+		}
+	} else {
+		if (state->archive_file == NULL || state->destination_directory == NULL) {
+			actualizar_estado(state, "Selecciona el archivo comprimido y la carpeta destino.");
+			return;
+		}
+	}
+
+	g_free(state->operacion_actual);
+	state->operacion_actual = g_strdup(operation);
+	state->indice_siguiente = 0;
+	state->ejecutando = TRUE;
+	ejecutar_siguiente(state);
 }
 
 static GtkWidget *crear_boton_operacion(const gchar *label,
@@ -249,7 +336,7 @@ static GtkWidget *agregar_celda(GtkGrid *grid, const gchar *text, gint column, g
 
 static GtkWidget *crear_tabla_estadisticas(AppState *state) {
 	static const gchar *headers[] = {
-		"Método", "Salud (%)", "Tiempo comp.", "Tiempo descomp.",
+		"Método", "Estado", "Salud (%)", "Tiempo comp.", "Tiempo descomp.",
 		"Aceleración comp. (%)", "Aceleración descomp. (%)",
 		"Originales", "Comprimido", "Radio"
 	};
@@ -266,6 +353,9 @@ static GtkWidget *crear_tabla_estadisticas(AppState *state) {
 		for (guint column = 1; column < G_N_ELEMENTS(headers); column++) {
 			state->result_cells[row][column - 1] = agregar_celda(
 				GTK_GRID(grid), "Pendiente", column, row + 1);
+			if (column == 1) {
+				gtk_widget_set_size_request(state->result_cells[row][column - 1], 135, -1);
+			}
 		}
 	}
 	return grid;

@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
 	pthread_mutexattr_t atributos;
 	FILE *salida = NULL;
 	char *ruta_salida = NULL;
-	clock_t inicio = clock();
+	double inicio = tiempo_monotonic();
 	uint64_t original = 0;
 	uint64_t comprimido = 0;
 	uint32_t creados = 0;
@@ -182,7 +182,7 @@ limpiar:
 	if (resultado == 0) {
 		double ratio = original == 0 ? 0.0 : (double)comprimido / original;
 		printf("RESULT|Pthread|compress|100.0|%.6f|0.00|0.00|0.00|%zu|%zu|%llu|%llu|%.6f|0\n",
-			(double)(clock() - inicio) / CLOCKS_PER_SEC, cantidad, cantidad,
+			tiempo_monotonic() - inicio, cantidad, cantidad,
 			(unsigned long long)original, (unsigned long long)comprimido, ratio);
 	}
 	free(ruta_salida);

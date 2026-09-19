@@ -159,7 +159,7 @@ int comprimir_huffman(const char *directorio_entrada, const char *directorio_sal
 	FILE *salida;
 	uint64_t tamano_original = 0;
 	uint64_t tamano_comprimido = 0;
-	clock_t inicio = clock();
+	double inicio = tiempo_monotonic();
 	int resultado = -1;
 
 	if (listar_archivos(directorio_entrada, &entradas, &cantidad) != 0) {
@@ -201,7 +201,7 @@ limpiar_archivo:
 	free(ruta_salida);
 	liberar_entradas(entradas, cantidad);
 	if (resultado == 0) {
-		double segundos = (double)(clock() - inicio) / CLOCKS_PER_SEC;
+		double segundos = tiempo_monotonic() - inicio;
 		double ratio = tamano_original == 0 ? 0.0 : (double)tamano_comprimido / tamano_original;
 		printf("RESULT|Normal|compress|100.0|%.6f|0.00|0.00|0.00|%zu|%zu|%llu|%llu|%.6f|0\n",
 			   segundos, cantidad, cantidad, (unsigned long long)tamano_original,

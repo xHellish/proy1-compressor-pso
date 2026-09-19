@@ -10,7 +10,7 @@
 int descomprimir_normal(const char *archivo_comprimido, const char *directorio_destino) {
 	ArchivoComprimido archivo;
 	char *directorio_resultado = unir_ruta(directorio_destino, "normal");
-	clock_t inicio = clock();
+	double inicio = tiempo_monotonic();
 	uint32_t verificadas = 0;
 	uint64_t original = 0;
 
@@ -26,7 +26,7 @@ int descomprimir_normal(const char *archivo_comprimido, const char *directorio_d
 		if (descomprimir_registro(&archivo.registros[i], directorio_resultado) == 0) ++verificadas;
 	}
 	int resultado = verificadas == archivo.cantidad ? 0 : -1;
-	double segundos = (double)(clock() - inicio) / CLOCKS_PER_SEC;
+	double segundos = tiempo_monotonic() - inicio;
 	double ratio = original == 0 ? 0.0 : (double)archivo.tamano_comprimido / original;
 	printf("RESULT|Normal|decompress|%.1f|0.00|%.6f|0.00|0.00|%u|%u|%llu|%llu|%.6f|%d\n",
 		100.0 * verificadas / (archivo.cantidad == 0 ? 1 : archivo.cantidad), segundos,

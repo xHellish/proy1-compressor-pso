@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 	Trabajo *trabajos = NULL;
 	EstadoCompartido *estado = NULL;
 	pthread_mutexattr_t atributos;
-	clock_t inicio = clock();
+	double inicio = tiempo_monotonic();
 	uint64_t original = 0;
 	uint32_t creados = 0;
 	uint32_t verificadas = 0;
@@ -85,7 +85,7 @@ limpiar:
 		double ratio = original == 0 ? 0.0 : (double)archivo.tamano_comprimido / original;
 		printf("RESULT|Pthread|decompress|%.1f|0.00|%.6f|0.00|0.00|%u|%u|%llu|%llu|%.6f|0\n",
 			100.0 * (double)verificadas / (archivo.cantidad == 0 ? 1 : archivo.cantidad),
-			(double)(clock() - inicio) / CLOCKS_PER_SEC, archivo.cantidad, verificadas,
+			tiempo_monotonic() - inicio, archivo.cantidad, verificadas,
 			(unsigned long long)original, (unsigned long long)archivo.tamano_comprimido, ratio);
 	}
 	free(hilos);

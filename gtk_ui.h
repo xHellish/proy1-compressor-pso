@@ -26,11 +26,16 @@ typedef struct {
 	GtkWidget *archive_label;
 	GtkWidget *destination_label;
 	GtkWidget *status_label;
-	GtkWidget *result_cells[3][8];
+	GtkWidget *result_cells[3][9];
 	gchar *source_directory;
 	gchar *archive_file;
 	gchar *destination_directory;
 	Resultado resultados[3];
+	gboolean compresion_recibida[3];
+	gboolean descompresion_recibida[3];
+	gchar *operacion_actual;
+	guint indice_siguiente;
+	gboolean ejecutando;
 } AppState;
 
 void activar_ui(GtkApplication *app);

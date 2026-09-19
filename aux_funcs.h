@@ -10,6 +10,7 @@ typedef struct {
 } Entrada;
 
 char *duplicar_texto(const char *texto);
+double tiempo_monotonic(void);
 void liberar_entradas(Entrada *entradas, size_t cantidad);
 char *unir_ruta(const char *directorio, const char *nombre);
 int listar_archivos(const char *directorio, Entrada **salida, size_t *cantidad);
