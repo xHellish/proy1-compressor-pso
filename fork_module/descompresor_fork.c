@@ -28,7 +28,11 @@ int descomprimir_fork(const char *archivo_comprimido, const char *directorio_des
 	for (uint32_t i = 0; i < archivo.cantidad; ++i) {
 		pid_t pid = fork();
 		if (pid == 0) {
-			int estado = descomprimir_registro(&archivo.registros[i], directorio_resultado) == 0 ? 1 : 0;
+			char *ruta_archivo = unir_ruta(directorio_resultado, archivo.registros[i].nombre);
+			int estado = ruta_archivo != NULL &&
+				descomprimir_registro(&archivo.registros[i], directorio_resultado) == 0 &&
+				verificar_md5_archivo(ruta_archivo, archivo.registros[i].md5) == 0 ? 1 : 0;
+			free(ruta_archivo);
 			close(canal[0]);
 			(void)write(canal[1], &estado, sizeof(estado));
 			close(canal[1]);

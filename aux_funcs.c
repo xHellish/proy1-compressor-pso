@@ -3,6 +3,7 @@
 #include "aux_funcs.h"
 
 #include <dirent.h>
+#include <openssl/md5.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,53 @@ double tiempo_monotonic(void) {
 	struct timespec instante;
 	clock_gettime(CLOCK_MONOTONIC, &instante);
 	return (double)instante.tv_sec + (double)instante.tv_nsec / 1e9;
+}
+
+int calcular_md5_buffer(const unsigned char *datos, size_t longitud, char salida[33]) {
+	unsigned char digest[MD5_DIGEST_LENGTH];
+	MD5_CTX contexto;
+	if (datos == NULL && longitud != 0) return -1;
+	MD5_Init(&contexto);
+	if (longitud > 0) {
+		MD5_Update(&contexto, datos, longitud);
+	}
+	MD5_Final(digest, &contexto);
+	for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+		snprintf(salida + (size_t)i * 2, 3, "%02x", digest[i]);
+	}
+	salida[32] = '\0';
+	return 0;
+}
+
+int calcular_md5_archivo(const char *ruta, char salida[33]) {
+	FILE *archivo = fopen(ruta, "rb");
+	unsigned char buffer[8192];
+	size_t leidos;
+	MD5_CTX contexto;
+	unsigned char digest[MD5_DIGEST_LENGTH];
+	if (archivo == NULL) return -1;
+	MD5_Init(&contexto);
+	while ((leidos = fread(buffer, 1, sizeof(buffer), archivo)) > 0) {
+		MD5_Update(&contexto, buffer, leidos);
+	}
+	if (ferror(archivo) != 0) {
+		fclose(archivo);
+		return -1;
+	}
+	fclose(archivo);
+	MD5_Final(digest, &contexto);
+	for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+		snprintf(salida + (size_t)i * 2, 3, "%02x", digest[i]);
+	}
+	salida[32] = '\0';
+	return 0;
+}
+
+int verificar_md5_archivo(const char *ruta, const char *esperado) {
+	char actual[33];
+	if (ruta == NULL || esperado == NULL) return -1;
+	if (calcular_md5_archivo(ruta, actual) != 0) return -1;
+	return strcmp(actual, esperado) == 0 ? 0 : -1;
 }
 
 char *duplicar_texto(const char *texto) {
@@ -187,6 +235,12 @@ int leer_archivo_comprimido(const char *ruta, ArchivoComprimido *archivo) {
 			liberar_archivo_comprimido(archivo);
 			return -1;
 		}
+		if (leer_bytes(entrada, registro->md5, 33) != 0) {
+			fclose(entrada);
+			liberar_archivo_comprimido(archivo);
+			return -1;
+		}
+		registro->md5[32] = '\0';
 		registro->nombre = malloc((size_t)nombre_tamano + 1);
 		if (registro->nombre == NULL || leer_bytes(entrada, registro->nombre, nombre_tamano) != 0) {
 			fclose(entrada);
@@ -202,7 +256,8 @@ int leer_archivo_comprimido(const char *ruta, ArchivoComprimido *archivo) {
 			return -1;
 		}
 		archivo->tamano_comprimido += sizeof(nombre_tamano) + sizeof(registro->tamano_original) +
-			sizeof(registro->bits) + sizeof(registro->frecuencias) + nombre_tamano + registro->datos_tamano;
+			sizeof(registro->bits) + sizeof(registro->frecuencias) + sizeof(registro->md5) +
+			nombre_tamano + registro->datos_tamano;
 	}
 	fclose(entrada);
 	archivo->tamano_comprimido += sizeof(magic) + sizeof(cantidad);

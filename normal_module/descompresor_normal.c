@@ -22,8 +22,13 @@ int descomprimir_normal(const char *archivo_comprimido, const char *directorio_d
 	}
 	if (leer_archivo_comprimido(archivo_comprimido, &archivo) != 0) return -1;
 	for (uint32_t i = 0; i < archivo.cantidad; ++i) {
+		char *ruta_archivo = unir_ruta(directorio_resultado, archivo.registros[i].nombre);
+		int correcto = ruta_archivo != NULL &&
+			descomprimir_registro(&archivo.registros[i], directorio_resultado) == 0 &&
+			verificar_md5_archivo(ruta_archivo, archivo.registros[i].md5) == 0;
 		original += archivo.registros[i].tamano_original;
-		if (descomprimir_registro(&archivo.registros[i], directorio_resultado) == 0) ++verificadas;
+		if (correcto) ++verificadas;
+		free(ruta_archivo);
 	}
 	int resultado = verificadas == archivo.cantidad ? 0 : -1;
 	double segundos = tiempo_monotonic() - inicio;

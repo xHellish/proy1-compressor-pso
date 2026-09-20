@@ -23,7 +23,11 @@ typedef struct {
 
 static void *descomprimir_trabajo(void *datos) {
 	Trabajo *trabajo = datos;
-	int correcto = descomprimir_registro(trabajo->registro, trabajo->directorio) == 0;
+	char *ruta_archivo = unir_ruta(trabajo->directorio, trabajo->registro->nombre);
+	int correcto = ruta_archivo != NULL &&
+		descomprimir_registro(trabajo->registro, trabajo->directorio) == 0 &&
+		verificar_md5_archivo(ruta_archivo, trabajo->registro->md5) == 0;
+	free(ruta_archivo);
 	if (correcto) {
 		pthread_mutex_lock(&trabajo->estado->mutex);
 		++trabajo->estado->verificadas;

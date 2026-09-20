@@ -22,6 +22,7 @@ typedef struct {
 	uint64_t tamano_original;
 	uint64_t bits;
 	uint64_t frecuencias[256];
+	char md5[33];
 	unsigned char *datos;
 	size_t datos_tamano;
 } RegistroComprimido;
@@ -35,5 +36,8 @@ typedef struct {
 int leer_archivo_comprimido(const char *ruta, ArchivoComprimido *archivo);
 void liberar_archivo_comprimido(ArchivoComprimido *archivo);
 int descomprimir_registro(const RegistroComprimido *registro, const char *directorio);
+int calcular_md5_archivo(const char *ruta, char salida[33]);
+int calcular_md5_buffer(const unsigned char *datos, size_t longitud, char salida[33]);
+int verificar_md5_archivo(const char *ruta, const char *esperado);
 
 #endif

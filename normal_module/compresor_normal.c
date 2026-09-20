@@ -83,6 +83,7 @@ static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tama
 	NodoHuffman nodos[511];
 	char *codigos[256] = {0};
 	char codigo[512];
+	char md5[33];
 	int raiz;
 	uint64_t bits = 0;
 	unsigned char byte = 0;
@@ -116,10 +117,16 @@ static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tama
 			bits += strlen(codigos[datos[i]]);
 		}
 	}
+	if (calcular_md5_buffer(datos, (size_t)tamano, md5) != 0) {
+		free(datos);
+		for (int i = 0; i < 256; ++i) free(codigos[i]);
+		return -1;
+	}
 	if (fwrite(&nombre_tamano, sizeof(nombre_tamano), 1, salida) != 1 ||
 		fwrite(&tamano, sizeof(tamano), 1, salida) != 1 ||
 		fwrite(&bits, sizeof(bits), 1, salida) != 1 ||
 		fwrite(frecuencias, sizeof(frecuencias), 1, salida) != 1 ||
+		fwrite(md5, 1, sizeof(md5), salida) != sizeof(md5) ||
 		fwrite(entrada->nombre, 1, nombre_tamano, salida) != nombre_tamano) {
 		free(datos);
 		for (int i = 0; i < 256; ++i) free(codigos[i]);
