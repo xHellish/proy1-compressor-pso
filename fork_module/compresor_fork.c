@@ -11,8 +11,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#define ARCHIVO_SALIDA "archivo_comprimido_fork.huff"
-#define ARCHIVO_SALIDA_NORMAL "archivo_comprimido_normal.huff"
+#define ARCHIVO_SALIDA "archivo_comprimido.huff"
+#define ARCHIVO_SALIDA_NORMAL "archivo_comprimido.huff"
 #define MAGIC "HUF1"
 #define TAMANO_ENCABEZADO (sizeof(uint32_t) + 4)
 

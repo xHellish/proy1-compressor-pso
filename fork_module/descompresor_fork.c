@@ -11,7 +11,7 @@
 
 int descomprimir_fork(const char *archivo_comprimido, const char *directorio_destino) {
 	ArchivoComprimido archivo;
-	char *directorio_resultado = unir_ruta(directorio_destino, "fork");
+	char *directorio_resultado = unir_ruta(directorio_destino, "descomprimido");
 	double inicio = tiempo_monotonic();
 	int canal[2];
 	uint32_t verificadas = 0;

@@ -12,8 +12,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#define ARCHIVO_NORMAL "archivo_comprimido_normal.huff"
-#define ARCHIVO_PTHREAD "archivo_comprimido_pthread.huff"
+#define ARCHIVO_NORMAL "archivo_comprimido.huff"
+#define ARCHIVO_PTHREAD "archivo_comprimido.huff"
 #define MAGIC "HUF1"
 #define ENCABEZADO_GLOBAL (4 + sizeof(uint32_t))
 

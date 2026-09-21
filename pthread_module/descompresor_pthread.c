@@ -8,8 +8,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define ARCHIVO_SALIDA "pthread"
-
 typedef struct {
 	pthread_mutex_t mutex;
 	uint32_t verificadas;
@@ -54,8 +52,9 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	if (mkdir(argv[2], 0755) != 0 && errno != EEXIST) return 1;
-	directorio_resultado = unir_ruta(argv[2], ARCHIVO_SALIDA);
-	if (directorio_resultado == NULL || (mkdir(directorio_resultado, 0755) != 0 && errno != EEXIST) ||
+	directorio_resultado = unir_ruta(argv[2], "descomprimido");
+	if (directorio_resultado == NULL ||
+		(mkdir(directorio_resultado, 0755) != 0 && errno != EEXIST) ||
 		leer_archivo_comprimido(argv[1], &archivo) != 0) {
 		free(directorio_resultado);
 		return 1;

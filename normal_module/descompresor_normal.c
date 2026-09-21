@@ -9,7 +9,7 @@
 
 int descomprimir_normal(const char *archivo_comprimido, const char *directorio_destino) {
 	ArchivoComprimido archivo;
-	char *directorio_resultado = unir_ruta(directorio_destino, "normal");
+	char *directorio_resultado = unir_ruta(directorio_destino, "descomprimido");
 	double inicio = tiempo_monotonic();
 	uint32_t verificadas = 0;
 	uint64_t original = 0;

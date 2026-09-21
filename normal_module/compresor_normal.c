@@ -9,7 +9,7 @@
 #include "../aux_funcs.h"
 #include "compresor_normal.h"
 
-#define ARCHIVO_SALIDA "archivo_comprimido_normal.huff"
+#define ARCHIVO_SALIDA "archivo_comprimido.huff"
 #define MAGIC "HUF1"
 
 typedef struct {

@@ -224,11 +224,6 @@ static void ejecutar_siguiente(AppState *state) {
 	static const gchar *descompresores[] = {
 		"./descompresor_normal", "./descompresor_fork", "./descompresor_pthread"
 	};
-	static const gchar *archive_names[] = {
-		"archivo_comprimido_normal.huff",
-		"archivo_comprimido_fork.huff",
-		"archivo_comprimido_pthread.huff"
-	};
 	const gchar *const *programs = g_strcmp0(state->operacion_actual, "compress") == 0
 		? compresores : descompresores;
 	guint index;
@@ -250,14 +245,10 @@ static void ejecutar_siguiente(AppState *state) {
 				&error, programs[index], state->source_directory,
 				state->destination_directory, NULL);
 		} else {
-			gchar *archive_directory = g_path_get_dirname(state->archive_file);
-			gchar *archive_file = g_build_filename(archive_directory, archive_names[index], NULL);
 			process = g_subprocess_new(
 				G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_PIPE,
-				&error, programs[index], archive_file,
+				&error, programs[index], state->archive_file,
 				state->destination_directory, NULL);
-			g_free(archive_directory);
-			g_free(archive_file);
 		}
 		if (process == NULL) {
 			g_free(state->resultados[index].estado);
