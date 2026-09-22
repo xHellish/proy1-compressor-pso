@@ -16,6 +16,7 @@
 #define MAGIC "HUF1"
 #define TAMANO_ENCABEZADO (sizeof(uint32_t) + 4)
 
+// Funciones auxiliares para el flujo de trabajo con procesos hijo.
 static int copiar_datos(FILE *origen, FILE *destino) {
 	unsigned char buffer[8192];
 	size_t leidos;
@@ -50,6 +51,7 @@ static void limpiar_temporales(char **directorios, char **archivos, const Entrad
 	free(archivos);
 }
 
+// Comprime un directorio completo usando procesos hijo y el compresor normal.
 int comprimir_fork(const char *directorio_entrada, const char *directorio_salida) {
 	Entrada *entradas = NULL;
 	size_t cantidad = 0;
@@ -63,6 +65,7 @@ int comprimir_fork(const char *directorio_entrada, const char *directorio_salida
 	uint64_t tamano_original = 0;
 	uint64_t tamano_comprimido = 0;
 
+	// Valida la entrada y prepara el directorio de salida.
 	if (listar_archivos(directorio_entrada, &entradas, &cantidad) != 0 ||
 		(mkdir(directorio_salida, 0755) != 0 && errno != EEXIST) || pipe(canal) != 0) {
 		liberar_entradas(entradas, cantidad);
@@ -73,6 +76,7 @@ int comprimir_fork(const char *directorio_entrada, const char *directorio_salida
 	estados = calloc(cantidad, sizeof(*estados));
 	if ((cantidad != 0 && temporales == NULL) || (cantidad != 0 && archivos == NULL) ||
 		(cantidad != 0 && estados == NULL)) goto limpiar;
+	// Crea cada directorio temporal y enlaza el archivo original para la compresión por hijo.
 	for (size_t i = 0; i < cantidad; ++i) {
 		char nombre_temporal[64];
 		snprintf(nombre_temporal, sizeof(nombre_temporal), ".fork_input_%zu", i);
@@ -108,12 +112,15 @@ int comprimir_fork(const char *directorio_entrada, const char *directorio_salida
 		}
 	}
 	close(canal[1]);
+	// Lee el estado de cada proceso hijo.
 	for (size_t i = 0; i < cantidad; ++i) {
 		int estado;
 		if (read(canal[0], &estado, sizeof(estado)) == (ssize_t)sizeof(estado)) estados[i] = estado;
 	}
 	close(canal[0]);
+	// Espera a que todos los hijos terminen antes de consolidar la salida.
 	while (wait(NULL) > 0) {}
+	// Verifica que cada parte haya sido generada correctamente.
 	for (size_t i = 0; i < cantidad; ++i) {
 		char *generado = unir_ruta(archivos[i], ARCHIVO_SALIDA_NORMAL);
 		if (generado == NULL) goto limpiar;

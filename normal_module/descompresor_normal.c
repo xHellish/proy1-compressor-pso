@@ -7,20 +7,28 @@
 #include <sys/stat.h>
 #include <time.h>
 
+// Descomprime el archivo generado por el módulo normal.
 int descomprimir_normal(const char *archivo_comprimido, const char *directorio_destino) {
+	
 	ArchivoComprimido archivo;
 	char *directorio_resultado = unir_ruta(directorio_destino, "descomprimido");
 	double inicio = tiempo_monotonic();
 	uint32_t verificadas = 0;
 	uint64_t original = 0;
 
+	// Crea el directorio destino si no existe.
 	if (mkdir(directorio_destino, 0755) != 0 && errno != EEXIST) return -1;
+
 	if (directorio_resultado == NULL ||
 		(mkdir(directorio_resultado, 0755) != 0 && errno != EEXIST)) {
 		free(directorio_resultado);
 		return -1;
 	}
+
+	// Lee el archivo comprimido para obtener la lista de registros.
 	if (leer_archivo_comprimido(archivo_comprimido, &archivo) != 0) return -1;
+
+	// Descomprime y verifica cada registro del archivo comprimido.
 	for (uint32_t i = 0; i < archivo.cantidad; ++i) {
 		char *ruta_archivo = unir_ruta(directorio_resultado, archivo.registros[i].nombre);
 		int correcto = ruta_archivo != NULL &&
@@ -30,6 +38,7 @@ int descomprimir_normal(const char *archivo_comprimido, const char *directorio_d
 		if (correcto) ++verificadas;
 		free(ruta_archivo);
 	}
+
 	int resultado = verificadas == archivo.cantidad ? 0 : -1;
 	double segundos = tiempo_monotonic() - inicio;
 	double ratio = original == 0 ? 0.0 : (double)archivo.tamano_comprimido / original;
@@ -37,15 +46,19 @@ int descomprimir_normal(const char *archivo_comprimido, const char *directorio_d
 		100.0 * verificadas / (archivo.cantidad == 0 ? 1 : archivo.cantidad), segundos,
 		archivo.cantidad, verificadas, (unsigned long long)original,
 		(unsigned long long)archivo.tamano_comprimido, ratio, resultado == 0 ? 0 : 1);
-	liberar_archivo_comprimido(&archivo);
+	
+		liberar_archivo_comprimido(&archivo);
 	free(directorio_resultado);
 	return resultado;
 }
 
+// Punto de entrada del descompresor normal.
 int main(int argc, char **argv) {
+
 	if (argc != 3) {
 		fprintf(stderr, "Uso: %s <archivo_comprimido> <directorio_destino>\n", argv[0]);
 		return 1;
 	}
+
 	return descomprimir_normal(argv[1], argv[2]) == 0 ? 0 : 1;
 }

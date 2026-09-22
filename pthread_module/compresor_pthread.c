@@ -17,6 +17,7 @@
 #define MAGIC "HUF1"
 #define ENCABEZADO_GLOBAL (4 + sizeof(uint32_t))
 
+// Estructuras compartidas por los hilos.
 typedef struct {
 	pthread_mutex_t mutex;
 	uint32_t exitosos;
@@ -29,6 +30,7 @@ typedef struct {
 	int correcto;
 } Trabajo;
 
+// Copia el contenido de un archivo origen a un archivo destino.
 static int copiar_datos(FILE *origen, FILE *destino) {
 	unsigned char buffer[8192];
 	size_t leidos;
@@ -38,6 +40,7 @@ static int copiar_datos(FILE *origen, FILE *destino) {
 	return ferror(origen) ? -1 : 0;
 }
 
+// Ejecuta la compresión de una entrada dentro de un hilo independiente.
 static void *comprimir_trabajo(void *datos) {
 	Trabajo *trabajo = datos;
 	pid_t hijo = fork();
@@ -64,6 +67,7 @@ static void *comprimir_trabajo(void *datos) {
 	return NULL;
 }
 
+// Limpia los directorios y archivos temporales creados para cada hilo.
 static void limpiar_temporales(char **entradas, char **salidas, const Entrada *originales, size_t cantidad) {
 	for (size_t i = 0; i < cantidad; ++i) {
 		if (entradas[i] != NULL) {
@@ -89,6 +93,7 @@ static void limpiar_temporales(char **entradas, char **salidas, const Entrada *o
 	free(salidas);
 }
 
+// Flujo principal de compresión con hilos.
 int main(int argc, char **argv) {
 	Entrada *archivos_entrada = NULL;
 	size_t cantidad = 0;
@@ -106,6 +111,7 @@ int main(int argc, char **argv) {
 	uint32_t creados = 0;
 	int resultado = 1;
 
+	// Verifica la línea de comandos y la existencia del directorio de entrada.
 	if (argc != 3) {
 		fprintf(stderr, "Uso: %s <directorio_entrada> <directorio_salida>\n", argv[0]);
 		return 1;
@@ -124,6 +130,7 @@ int main(int argc, char **argv) {
 	pthread_mutexattr_setpshared(&atributos, PTHREAD_PROCESS_SHARED);
 	pthread_mutex_init(&estado->mutex, &atributos);
 	pthread_mutexattr_destroy(&atributos);
+	// Crea una carpeta temporal y un hilo por cada archivo a procesar.
 	for (size_t i = 0; i < cantidad; ++i) {
 		char nombre[64];
 		snprintf(nombre, sizeof(nombre), ".pthread_input_%zu", i);
@@ -142,6 +149,7 @@ int main(int argc, char **argv) {
 		if (pthread_create(&hilos[i], NULL, comprimir_trabajo, &trabajos[i]) != 0) goto limpiar;
 		++creados;
 	}
+	// Espera a que todos los hilos terminen y valide su éxito.
 	for (uint32_t i = 0; i < creados; ++i) pthread_join(hilos[i], NULL);
 	if (estado->exitosos != cantidad) goto limpiar;
 	ruta_salida = unir_ruta(argv[2], ARCHIVO_PTHREAD);

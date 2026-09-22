@@ -9,6 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 
+// Descomprime un archivo usando procesos hijo para cada registro.
 int descomprimir_fork(const char *archivo_comprimido, const char *directorio_destino) {
 	ArchivoComprimido archivo;
 	char *directorio_resultado = unir_ruta(directorio_destino, "descomprimido");
@@ -62,6 +63,7 @@ int descomprimir_fork(const char *archivo_comprimido, const char *directorio_des
 	return resultado;
 }
 
+// Punto de entrada del descompresor fork.
 int main(int argc, char **argv) {
 	if (argc != 3) {
 		fprintf(stderr, "Uso: %s <archivo_comprimido> <directorio_destino>\n", argv[0]);

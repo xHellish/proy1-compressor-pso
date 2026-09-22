@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
+// Estructuras del descompresor multihilo.
 typedef struct {
 	pthread_mutex_t mutex;
 	uint32_t verificadas;
@@ -19,6 +20,7 @@ typedef struct {
 	EstadoCompartido *estado;
 } Trabajo;
 
+// Descomprime un registro en un hilo y actualiza el contador compartido.
 static void *descomprimir_trabajo(void *datos) {
 	Trabajo *trabajo = datos;
 	char *ruta_archivo = unir_ruta(trabajo->directorio, trabajo->registro->nombre);

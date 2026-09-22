@@ -12,24 +12,22 @@
 #define ARCHIVO_SALIDA "archivo_comprimido.huff"
 #define MAGIC "HUF1"
 
-typedef struct {
-	uint64_t frecuencia;
-	int izquierda;
-	int derecha;
-	unsigned char simbolo;
-} NodoHuffman;
+// --------------------------------------------------- //
+// Funciones auxiliares para la construcción del árbol y los códigos Huffman.
 
 static int construir_arbol(const uint64_t frecuencias[256], NodoHuffman nodos[511],
 							int raices[256]) {
 	int cantidad = 0;
 	int cantidad_raices = 0;
 
+	// Inicializa cada hoja del árbol con el símbolo y su frecuencia.
 	for (int simbolo = 0; simbolo < 256; ++simbolo) {
 		if (frecuencias[simbolo] != 0) {
 			nodos[cantidad] = (NodoHuffman){frecuencias[simbolo], -1, -1, (unsigned char)simbolo};
 			raices[cantidad_raices++] = cantidad++;
 		}
 	}
+	// Combina los nodos con menor frecuencia hasta dejar un único árbol.
 	while (cantidad_raices > 1) {
 		int primero = 0;
 		int segundo = 1;
@@ -58,8 +56,10 @@ static int construir_arbol(const uint64_t frecuencias[256], NodoHuffman nodos[51
 	return cantidad_raices == 0 ? -1 : raices[0];
 }
 
+// Genera el código Huffman para cada símbolo del árbol.
 static void generar_codigos(const NodoHuffman nodos[511], int nodo, char *codigo,
 							int profundidad, char *codigos[256]) {
+	// Si se llega a una hoja, guarda el código para ese símbolo.
 	if (nodos[nodo].izquierda == -1) {
 		codigo[profundidad == 0 ? 1 : profundidad] = '\0';
 		if (profundidad == 0) {
@@ -74,13 +74,16 @@ static void generar_codigos(const NodoHuffman nodos[511], int nodo, char *codigo
 	generar_codigos(nodos, nodos[nodo].derecha, codigo, profundidad + 1, codigos);
 }
 
-static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tamano_original,
-							uint64_t *tamano_comprimido) {
+// Genera y escribe la representación comprimida de un archivo individual.
+static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tamano_original, uint64_t *tamano_comprimido) {
+	
 	FILE *entrada_archivo = fopen(entrada->ruta, "rb");
 	uint64_t frecuencias[256] = {0};
 	unsigned char *datos = NULL;
 	long tamano;
+
 	NodoHuffman nodos[511];
+
 	char *codigos[256] = {0};
 	char codigo[512];
 	char md5[33];
@@ -90,14 +93,19 @@ static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tama
 	int bits_en_byte = 0;
 	uint32_t nombre_tamano = (uint32_t)strlen(entrada->nombre);
 
+	// Abre el archivo de entrada y obtiene su tamaño.
 	if (entrada_archivo == NULL) {
 		return -1;
 	}
+
+	// Mueve el puntero al final del archivo para determinar su tamaño.
 	if (fseek(entrada_archivo, 0, SEEK_END) != 0 || (tamano = ftell(entrada_archivo)) < 0 ||
 		fseek(entrada_archivo, 0, SEEK_SET) != 0) {
 		fclose(entrada_archivo);
 		return -1;
 	}
+
+	// Carga el contenido del archivo si tiene tamaño > 0.
 	if (tamano > 0) {
 		datos = malloc((size_t)tamano);
 		if (datos == NULL || fread(datos, 1, (size_t)tamano, entrada_archivo) != (size_t)tamano) {
@@ -106,22 +114,36 @@ static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tama
 			return -1;
 		}
 	}
+
 	fclose(entrada_archivo);
+
+	// Cuenta la frecuencia de cada byte del archivo.
 	for (long i = 0; i < tamano; ++i) {
 		++frecuencias[datos[i]];
 	}
+
 	raiz = construir_arbol(frecuencias, nodos, (int[256]){0});
+
+	// Genera los códigos Huffman si hay contenido para comprimir.
 	if (tamano > 0) {
 		generar_codigos(nodos, raiz, codigo, 0, codigos);
+
+		// Calcula el número total de bits que se generarán al codificar el archivo.
 		for (long i = 0; i < tamano; ++i) {
 			bits += strlen(codigos[datos[i]]);
 		}
 	}
+
+	// Calcula el hash MD5 del contenido original para verificar la integridad después de la descompresión.
 	if (calcular_md5_buffer(datos, (size_t)tamano, md5) != 0) {
+		
 		free(datos);
+
 		for (int i = 0; i < 256; ++i) free(codigos[i]);
 		return -1;
 	}
+
+	// Escribe la cabecera del archivo comprimido con información sobre el archivo original y su codificación.
 	if (fwrite(&nombre_tamano, sizeof(nombre_tamano), 1, salida) != 1 ||
 		fwrite(&tamano, sizeof(tamano), 1, salida) != 1 ||
 		fwrite(&bits, sizeof(bits), 1, salida) != 1 ||
@@ -132,12 +154,18 @@ static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tama
 		for (int i = 0; i < 256; ++i) free(codigos[i]);
 		return -1;
 	}
+
+	// Escribe cada bloque de bits codificados en salida.
 	for (long i = 0; i < tamano; ++i) {
+
 		for (const char *simbolo = codigos[datos[i]]; *simbolo != '\0'; ++simbolo) {
 			byte = (unsigned char)((byte << 1) | (*simbolo == '1'));
+
 			if (++bits_en_byte == 8) {
+
 				if (fputc(byte, salida) == EOF) {
 					free(datos);
+
 					for (int j = 0; j < 256; ++j) free(codigos[j]);
 					return -1;
 				}
@@ -146,11 +174,14 @@ static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tama
 			}
 		}
 	}
+
+	// Completa el último byte parcial si quedó incompleto.
 	if (bits_en_byte != 0 && fputc((int)(byte << (8 - bits_en_byte)), salida) == EOF) {
 		free(datos);
 		for (int i = 0; i < 256; ++i) free(codigos[i]);
 		return -1;
 	}
+	
 	*tamano_original += (uint64_t)tamano;
 	*tamano_comprimido += (uint64_t)(sizeof(nombre_tamano) + sizeof(tamano) + sizeof(bits) +
 								 sizeof(frecuencias) + nombre_tamano + (bits + 7) / 8);
@@ -159,6 +190,7 @@ static int escribir_archivo(FILE *salida, const Entrada *entrada, uint64_t *tama
 	return ferror(salida) ? -1 : 0;
 }
 
+// Comprime todo el contenido de un directorio usando el algoritmo Huffman.
 int comprimir_huffman(const char *directorio_entrada, const char *directorio_salida) {
 	Entrada *entradas = NULL;
 	size_t cantidad = 0;
@@ -169,9 +201,11 @@ int comprimir_huffman(const char *directorio_entrada, const char *directorio_sal
 	double inicio = tiempo_monotonic();
 	int resultado = -1;
 
+	// Obtiene la lista ordenada de archivos del directorio de entrada.
 	if (listar_archivos(directorio_entrada, &entradas, &cantidad) != 0) {
 		return -1;
 	}
+	// Crea el directorio de salida si no existe.
 	if (mkdir(directorio_salida, 0755) != 0 && errno != EEXIST) {
 		perror("No se pudo crear el directorio de salida");
 		liberar_entradas(entradas, cantidad);
@@ -185,9 +219,11 @@ int comprimir_huffman(const char *directorio_entrada, const char *directorio_sal
 		liberar_entradas(entradas, cantidad);
 		return -1;
 	}
+	// Escribe la cabecera del archivo comprimido.
 	if (fwrite(MAGIC, 1, 4, salida) != 4) goto limpiar;
 	uint32_t cantidad_archivos = (uint32_t)cantidad;
 	if (fwrite(&cantidad_archivos, sizeof(cantidad_archivos), 1, salida) != 1) goto limpiar;
+	// Procesa cada archivo del directorio y lo guarda comprimido.
 	for (size_t i = 0; i < cantidad; ++i) {
 		if (escribir_archivo(salida, &entradas[i], &tamano_original, &tamano_comprimido) != 0) {
 			goto limpiar;
