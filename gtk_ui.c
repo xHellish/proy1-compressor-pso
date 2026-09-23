@@ -368,7 +368,7 @@ void activar_ui(GtkApplication *app) {
 	GtkWidget *archive_label = gtk_label_new("Ningún archivo seleccionado");
 	GtkWidget *destination_label = gtk_label_new("Ninguna carpeta seleccionada");
 	GtkWidget *operation_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-	GtkWidget *statistics_title = gtk_label_new("Tabla comparativa (placeholders)");
+	GtkWidget *statistics_title = gtk_label_new("Tabla comparativa");
 	GtkWidget *statistics_scroll = gtk_scrolled_window_new();
 	GtkWidget *statistics_table = crear_tabla_estadisticas(state);
 	GtkWidget *status_label = gtk_label_new("Selecciona un directorio para comenzar.");
