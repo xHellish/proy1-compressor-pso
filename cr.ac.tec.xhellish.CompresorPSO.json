@@ -4,11 +4,13 @@
     "runtime-version": "48",
     "sdk": "org.gnome.Sdk",
     "command": "main",
+    "appstream-compose": false,
     "finish-args": [
         "--share=ipc",
         "--socket=x11",
         "--socket=wayland",
         "--socket=fallback-x11",
+        "--socket=session-bus",
         "--device=dri",
         "--filesystem=host"
     ],
