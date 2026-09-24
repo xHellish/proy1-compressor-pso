@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>cr.ac.tec.xhellish.CompresorPSO</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <name>Compresor PSO</name>
+  <summary>Comprime directorios con Huffman en tres variantes</summary>
+  <description>
+    <p>Comprime directorios completos con Huffman, guarda una firma MD5 por archivo y compara las variantes serial, fork() y pthread.</p>
+  </description>
+  <launchable type="desktop-id">cr.ac.tec.xhellish.CompresorPSO.desktop</launchable>
+</component>

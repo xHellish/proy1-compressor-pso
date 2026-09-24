@@ -1,5 +1,13 @@
 #include "gtk_ui.h"
 
+// Directorio donde viven los binarios ayudantes.
+// Build normal:  make          -> HELPER_DIR="."  => "./compresor_normal" (igual que antes).
+// Build Flatpak: make HELPER_DIR="/app/bin" (o -DFLATPAK_BUILD) => "/app/bin/compresor_normal".
+// No se hardcodea /app/bin: solo cambia cuando el Makefile/manifiesto lo define.
+#ifndef HELPER_DIR
+#define HELPER_DIR "."
+#endif
+
 static void actualizar_estado(AppState *state, const gchar *message) {
 	gtk_label_set_text(GTK_LABEL(state->status_label), message);
 }
@@ -218,12 +226,26 @@ static void seleccionar_archivo(GtkButton *button, gpointer user_data) {
 }
 
 static void ejecutar_siguiente(AppState *state) {
-	static const gchar *compresores[] = {
-		"./compresor_normal", "./compresor_fork", "./compresor_pthread"
-	};
-	static const gchar *descompresores[] = {
-		"./descompresor_normal", "./descompresor_fork", "./descompresor_pthread"
-	};
+	static char compresor_normal[256];
+	static char compresor_fork[256];
+	static char compresor_pthread[256];
+	static char descompresor_normal[256];
+	static char descompresor_fork[256];
+	static char descompresor_pthread[256];
+	const gchar *compresores[3];
+	const gchar *descompresores[3];
+	g_snprintf(compresor_normal, sizeof(compresor_normal), "%s/compresor_normal", HELPER_DIR);
+	g_snprintf(compresor_fork, sizeof(compresor_fork), "%s/compresor_fork", HELPER_DIR);
+	g_snprintf(compresor_pthread, sizeof(compresor_pthread), "%s/compresor_pthread", HELPER_DIR);
+	g_snprintf(descompresor_normal, sizeof(descompresor_normal), "%s/descompresor_normal", HELPER_DIR);
+	g_snprintf(descompresor_fork, sizeof(descompresor_fork), "%s/descompresor_fork", HELPER_DIR);
+	g_snprintf(descompresor_pthread, sizeof(descompresor_pthread), "%s/descompresor_pthread", HELPER_DIR);
+	compresores[0] = compresor_normal;
+	compresores[1] = compresor_fork;
+	compresores[2] = compresor_pthread;
+	descompresores[0] = descompresor_normal;
+	descompresores[1] = descompresor_fork;
+	descompresores[2] = descompresor_pthread;
 	const gchar *const *programs = g_strcmp0(state->operacion_actual, "compress") == 0
 		? compresores : descompresores;
 	guint index;

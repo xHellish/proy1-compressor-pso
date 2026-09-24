@@ -1,0 +1,34 @@
+{
+    "app-id": "cr.ac.tec.xhellish.CompresorPSO",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "48",
+    "sdk": "org.gnome.Sdk",
+    "command": "main",
+    "finish-args": [
+        "--share=ipc",
+        "--socket=x11",
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--device=dri",
+        "--filesystem=host"
+    ],
+    "modules": [
+        {
+            "name": "compresor-pso",
+            "buildsystem": "simple",
+            "build-commands": [
+                "make HELPER_DIR=/app/bin",
+                "make install DESTDIR=/app",
+                "mkdir -p /app/share/applications /app/share/metainfo",
+                "install -m 644 flatpak/cr.ac.tec.xhellish.CompresorPSO.desktop /app/share/applications/cr.ac.tec.xhellish.CompresorPSO.desktop",
+                "install -m 644 flatpak/cr.ac.tec.xhellish.CompresorPSO.metainfo.xml /app/share/metainfo/cr.ac.tec.xhellish.CompresorPSO.metainfo.xml"
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "."
+                }
+            ]
+        }
+    ]
+}

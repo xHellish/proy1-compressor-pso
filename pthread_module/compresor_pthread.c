@@ -14,6 +14,12 @@
 
 #define ARCHIVO_NORMAL "archivo_comprimido.huff"
 #define ARCHIVO_PTHREAD "archivo_comprimido.huff"
+
+// Igual que en gtk_ui.c: build normal HELPER_DIR="." (./compresor_normal),
+// build Flatpak HELPER_DIR="/app/bin" (/app/bin/compresor_normal).
+#ifndef HELPER_DIR
+#define HELPER_DIR "."
+#endif
 #define MAGIC "HUF1"
 #define ENCABEZADO_GLOBAL (4 + sizeof(uint32_t))
 
@@ -47,7 +53,9 @@ static void *comprimir_trabajo(void *datos) {
 	int estado;
 
 	if (hijo == 0) {
-		char *argumentos[] = {"./compresor_normal", (char *)trabajo->entrada,
+		char ruta_normal[4096];
+		snprintf(ruta_normal, sizeof(ruta_normal), "%s/compresor_normal", HELPER_DIR);
+		char *argumentos[] = {ruta_normal, (char *)trabajo->entrada,
 			(char *)trabajo->salida, NULL};
 		int silencioso = open("/dev/null", O_WRONLY);
 		if (silencioso >= 0) {

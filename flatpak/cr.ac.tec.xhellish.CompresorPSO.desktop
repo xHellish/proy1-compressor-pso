@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Compresor PSO
+Comment=Comprime directorios con Huffman (Normal, Fork, Pthread)
+Exec=main
+Icon=cr.ac.tec.xhellish.CompresorPSO
+Terminal=false
+Type=Application
+Categories=Utility;Archiving;
+StartupNotify=true

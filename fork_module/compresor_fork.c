@@ -13,6 +13,12 @@
 
 #define ARCHIVO_SALIDA "archivo_comprimido.huff"
 #define ARCHIVO_SALIDA_NORMAL "archivo_comprimido.huff"
+
+// Igual que en gtk_ui.c: build normal HELPER_DIR="." (./compresor_normal),
+// build Flatpak HELPER_DIR="/app/bin" (/app/bin/compresor_normal).
+#ifndef HELPER_DIR
+#define HELPER_DIR "."
+#endif
 #define MAGIC "HUF1"
 #define TAMANO_ENCABEZADO (sizeof(uint32_t) + 4)
 
@@ -93,7 +99,9 @@ int comprimir_fork(const char *directorio_entrada, const char *directorio_salida
 		free(enlace);
 		pid_t hijo = fork();
 		if (hijo == 0) {
-			char *argumentos[] = {"./compresor_normal", temporales[i], archivos[i], NULL};
+			char ruta_normal[4096];
+			snprintf(ruta_normal, sizeof(ruta_normal), "%s/compresor_normal", HELPER_DIR);
+			char *argumentos[] = {ruta_normal, temporales[i], archivos[i], NULL};
 			int silencioso = open("/dev/null", O_WRONLY);
 			close(canal[0]);
 			if (silencioso >= 0) {
